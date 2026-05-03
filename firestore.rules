@@ -1,0 +1,109 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 3. Path Variable Hardening helper
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    // Admin check - specifically for Krish
+    function isAdmin() {
+      return isEmailVerified() && request.auth.token.email.toLower() == 'jainkrish51952@gmail.com';
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Blueprints ---
+
+    function isValidProject(data) {
+      return data.keys().hasAll(['title', 'description', 'imageUrl', 'category', 'createdAt', 'updatedAt'])
+        && data.keys().size() >= 6 && data.keys().size() <= 7 // Allow optional liveUrl
+        && data.title is string && data.title.size() <= 100
+        && data.description is string && data.description.size() <= 1000
+        && data.imageUrl is string && data.imageUrl.size() <= 500
+        && data.category in ['Web Design', 'Graphic Design']
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll(['name', 'email', 'message', 'createdAt'])
+        && data.keys().size() == 4
+        && data.name is string && data.name.size() <= 100
+        && data.email is string && data.email.size() <= 100
+        && data.message is string && data.message.size() <= 2000
+        && data.createdAt == request.time;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'createdAt'])
+        && data.keys().size() >= 4 && data.keys().size() <= 6
+        && data.uid == request.auth.uid
+        && data.email == request.auth.token.email
+        && data.role in ['user', 'admin']
+        && data.createdAt == request.time;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['type', 'message', 'userEmail', 'createdAt', 'read'])
+        && data.keys().size() == 5
+        && data.type in ['registration', 'contact', 'interaction']
+        && data.message is string && data.message.size() <= 1000
+        && data.userEmail is string
+        && data.read == false
+        && data.createdAt == request.time;
+    }
+
+    // --- Collection Routes ---
+
+    match /projects/{projectId} {
+      allow read: if true; // Publicly readable
+      allow create: if isAdmin() && isValidProject(incoming());
+      allow update: if isAdmin() 
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'imageUrl', 'category', 'updatedAt', 'liveUrl'])
+        && incoming().updatedAt == request.time;
+      allow delete: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming()) 
+        && (incoming().role == 'user' || (incoming().role == 'admin' && request.auth.token.email.toLower() == 'jainkrish51952@gmail.com'));
+      allow update: if isSignedIn() && request.auth.uid == userId 
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL'])
+        && incoming().role == existing().role; // Prevent role escalation
+    }
+
+    match /messages/{messageId} {
+      allow create: if isValidMessage(incoming()); // Anyone can send a message
+      allow read: if isAdmin(); // Only admin reads messages
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAdmin();
+      allow create: if isValidNotification(incoming()) && (isSignedIn() || incoming().type == 'contact');
+      allow update: if isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      allow delete: if isAdmin();
+    }
+  }
+}

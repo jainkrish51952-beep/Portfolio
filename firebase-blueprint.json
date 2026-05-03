@@ -1,0 +1,77 @@
+{
+  "entities": {
+    "Project": {
+      "title": "Portfolio Project",
+      "description": "A project showcased in Krish's portfolio.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "The name of the project." },
+        "description": { "type": "string", "description": "A short summary of the project." },
+        "imageUrl": { "type": "string", "description": "URL to the project's thumbnail or cover image." },
+        "liveUrl": { "type": "string", "description": "URL to the live version of the project." },
+        "category": { "type": "string", "enum": ["Web Design", "Graphic Design"], "description": "The type of project." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the project was added." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "When the project was last modified." }
+      },
+      "required": ["title", "description", "imageUrl", "category", "createdAt", "updatedAt"]
+    },
+    "Notification": {
+      "title": "Admin Notification",
+      "description": "A notification for the admin about user activities.",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["registration", "contact", "interaction"], "description": "Type of event." },
+        "message": { "type": "string", "description": "Details about the event." },
+        "userId": { "type": "string", "description": "ID of the user who triggered the notification." },
+        "userEmail": { "type": "string", "description": "Email of the user." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp." },
+        "read": { "type": "boolean", "description": "Whether the admin has seen this." }
+      },
+      "required": ["type", "message", "createdAt", "read"]
+    },
+    "ContactMessage": {
+      "title": "Contact Form Submission",
+      "description": "A message sent via the contact form.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Sender's name." },
+        "email": { "type": "string", "description": "Sender's email." },
+        "message": { "type": "string", "description": "The message body." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp." }
+      },
+      "required": ["name", "email", "message", "createdAt"]
+    },
+    "User": {
+      "title": "User Profile",
+      "description": "A registered user on the platform.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The Firebase Auth UID." },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"], "description": "User role." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/projects/{projectId}": {
+      "schema": "Project",
+      "description": "Collection of all projects (web and graphic design)."
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Admin notifications."
+    },
+    "/messages/{messageId}": {
+      "schema": "ContactMessage",
+      "description": "User contact messages."
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Registered user profiles."
+    }
+  }
+}
